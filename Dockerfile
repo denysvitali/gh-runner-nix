@@ -8,8 +8,14 @@ RUN curl -fsSL https://install.determinate.systems/nix | sh -s -- install --dete
 
 RUN groupadd nix && usermod -aG nix runner
 
+RUN echo "trusted-users = root runner" >> /etc/nix/nix.conf
+
 ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
 
 USER runner
+
+RUN nix-env --install --attr devenv -f https://github.com/NixOS/nixpkgs/tarball/nixpkgs-unstable
+
+RUN devenv --version
 
 RUN nix --version
