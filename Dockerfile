@@ -10,11 +10,11 @@ RUN groupadd nix && usermod -aG nix runner
 
 RUN echo "trusted-users = root runner" >> /etc/nix/nix.conf
 
+RUN nix-daemon & sleep 2 && nix-env --install --attr devenv -f https://github.com/NixOS/nixpkgs/tarball/nixpkgs-unstable
+
 ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
 
 USER runner
-
-RUN nix-env --install --attr devenv -f https://github.com/NixOS/nixpkgs/tarball/nixpkgs-unstable
 
 RUN devenv --version
 
