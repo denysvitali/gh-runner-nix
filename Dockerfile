@@ -4,7 +4,7 @@ USER root
 
 RUN apt-get update && apt-get install -y xz-utils
 
-RUN curl -fsSL https://install.determinate.systems/nix | sh -s -- install --determinate
+RUN curl -fsSL https://install.determinate.systems/nix | sh -s -- install --determinate --no-confirm
 
 RUN usermod -aG nix runner
 
