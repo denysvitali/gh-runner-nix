@@ -4,7 +4,7 @@ USER root
 
 RUN apt-get update && apt-get install -y xz-utils
 
-RUN curl -fsSL https://install.determinate.systems/nix | sh -s -- install --determinate --no-confirm --no-daemon
+RUN sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) --no-daemon
 
 RUN groupadd nix && usermod -aG nix runner
 
