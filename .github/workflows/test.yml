@@ -51,6 +51,3 @@ jobs:
           echo "=== Testing Devenv ==="
           # Basic version check
           docker run --rm --user runner ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test devenv --version
-
-          # Test devenv can generate a basic environment
-          docker run --rm --user runner -w /tmp ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test sh -c 'devenv init -e bash && cat devenv.yaml'

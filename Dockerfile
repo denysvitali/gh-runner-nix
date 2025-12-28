@@ -10,9 +10,8 @@ USER runner
 
 RUN curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install -o /tmp/install.sh && sh /tmp/install.sh --no-daemon
 
-# Fix nix store permissions for the nix group
-RUN chmod -R g+w /nix/var/nix/profiles/default /nix/var/nix/gc-schema /nix/var/nix/temproots && \
-    chgrp -R nix /nix/var/nix/profiles/default /nix/var/nix/gc-schema /nix/var/nix/temproots
+# Ensure /nix is accessible (single-user install already chowns to runner)
+RUN chmod 755 /nix
 
 ENV PATH="/home/runner/.nix-profile/bin:/nix/var/nix/profiles/default/bin:${PATH}"
 
