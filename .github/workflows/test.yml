@@ -1,0 +1,59 @@
+name: Test Runner Image
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  test-nix-devenv:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: gh-runner-nix:test
+
+      - name: Test Nix installation
+        run: |
+          echo "=== Testing Nix ==="
+          # Run nix --version as the runner user
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test su - runner -c "nix --version"
+
+          # Test that nix can evaluate an expression
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test su - runner -c "nix-instantiate --eval -E 'builtins.concatStringsSep \".\" (map toString [1 2 3])'"
+
+          # Test nix-env works
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test su - runner -c "nix-env --list-generations"
+
+      - name: Test Cachix installation
+        run: |
+          echo "=== Testing Cachix ==="
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test su - runner -c "cachix --version"
+
+      - name: Test Devenv installation
+        run: |
+          echo "=== Testing Devenv ==="
+          # Basic version check
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test su - runner -c "devenv --version"
+
+          # Test devenv can generate a basic environment
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test su - runner -c "cd /tmp && devenv init -e bash && cat devenv.yaml"
+
+          # Clean up test directory
+          docker run --rm ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test rm -rf /tmp/devenv-test 2>/dev/null || true
