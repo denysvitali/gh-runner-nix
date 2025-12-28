@@ -33,21 +33,21 @@ jobs:
         run: |
           echo "=== Testing Nix ==="
           # Run nix --version as the runner user using --user
-          docker run --rm --user runner ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test nix --version
+          docker run --rm --user runner gh-runner-nix:test nix --version
 
           # Test that nix can evaluate an expression
-          docker run --rm --user runner ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test nix-instantiate --eval -E 'builtins.concatStringsSep \".\" (map toString [1 2 3])'
+          docker run --rm --user runner gh-runner-nix:test nix-instantiate --eval -E 'builtins.concatStringsSep \".\" (map toString [1 2 3])'
 
           # Test nix-env works
-          docker run --rm --user runner ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test nix-env --list-generations
+          docker run --rm --user runner gh-runner-nix:test nix-env --list-generations
 
       - name: Test Cachix installation
         run: |
           echo "=== Testing Cachix ==="
-          docker run --rm --user runner ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test cachix --version
+          docker run --rm --user runner gh-runner-nix:test cachix --version
 
       - name: Test Devenv installation
         run: |
           echo "=== Testing Devenv ==="
           # Basic version check
-          docker run --rm --user runner ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:test devenv --version
+          docker run --rm --user runner gh-runner-nix:test devenv --version
