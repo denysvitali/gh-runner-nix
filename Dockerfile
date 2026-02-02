@@ -2,23 +2,30 @@ FROM ghcr.io/actions/actions-runner:latest
 
 USER root
 
-RUN apt-get update && apt-get install -y xz-utils curl
+# Install dependencies
+RUN apt-get update && apt-get install -y xz-utils curl && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd nix && usermod -aG nix runner
+# Install Nix using Determinate Systems installer in single-user mode
+# This avoids the need for a running nix-daemon during build
+RUN curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | \
+    sh -s -- install linux --no-confirm --init none --extra-conf "trusted-users = root runner"
 
+# Set PATH for subsequent RUN commands
+ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
+
+# Give runner user ownership of nix directories for single-user operation
+RUN chown -R runner:runner /nix
+
+# Switch to runner user for package installations
 USER runner
 
-RUN curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install -o /tmp/install.sh && sh /tmp/install.sh --no-daemon
+# Install packages using nix profile (modern approach)
+RUN nix profile install nixpkgs#cachix
 
-# Ensure /nix is accessible (single-user install already chowns to runner)
-RUN chmod 755 /nix
+RUN nix profile install nixpkgs#devenv
 
-ENV PATH="/home/runner/.nix-profile/bin:/nix/var/nix/profiles/default/bin:${PATH}"
+# Update PATH for runner user's nix profile
+ENV PATH="/home/runner/.nix-profile/bin:${PATH}"
 
-RUN nix-env --quiet -j8 -iA cachix -f https://cachix.org/api/v1/install
-
-RUN nix-env --install --attr devenv -f https://github.com/NixOS/nixpkgs/tarball/nixpkgs-unstable
-
-RUN devenv --version
-
-RUN nix --version
+# Verify installations
+RUN nix --version && cachix --version && devenv --version

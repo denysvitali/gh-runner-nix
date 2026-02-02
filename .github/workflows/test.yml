@@ -36,7 +36,7 @@ jobs:
           docker run --rm --user runner gh-runner-nix:test nix --version
 
           # Test that nix can evaluate an expression
-          docker run --rm --user runner gh-runner-nix:test nix-instantiate --eval -E 'builtins.concatStringsSep \".\" (map toString [1 2 3])'
+          docker run --rm --user runner gh-runner-nix:test nix-instantiate --eval -E 'builtins.concatStringsSep "." (map toString [1 2 3])'
 
           # Test nix-env works
           docker run --rm --user runner gh-runner-nix:test nix-env --list-generations
