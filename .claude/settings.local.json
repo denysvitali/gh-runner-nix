@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__gh-actions-mcp__list_runs",
+      "mcp__gh-actions-mcp__list_workflows",
+      "mcp__gh-actions-mcp__get_run",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:devenv.sh)",
+      "Bash(git fetch:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git pull:*)",
+      "Bash(docker build:*)"
+    ]
+  }
+}
