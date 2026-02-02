@@ -1,0 +1,139 @@
+name: Auto Release
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force release even if versions match"
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: "Dry run - don't create tags or releases"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Get latest upstream release
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          UPSTREAM_VERSION=$(gh api repos/actions/runner/releases/latest --jq '.tag_name')
+          echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
+          echo "Upstream version: $UPSTREAM_VERSION"
+
+      - name: Get latest local tag
+        id: local
+        run: |
+          # Get the latest local tag (sorted by version)
+          LOCAL_VERSION=$(git tag -l 'v*' | sort -V | tail -n1 || echo "")
+          echo "version=$LOCAL_VERSION" >> $GITHUB_OUTPUT
+          echo "Local version: ${LOCAL_VERSION:-none}"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          UPSTREAM="${{ steps.upstream.outputs.version }}"
+          LOCAL="${{ steps.local.outputs.version }}"
+          FORCE="${{ inputs.force }}"
+
+          echo "Upstream: $UPSTREAM"
+          echo "Local: $LOCAL"
+          echo "Force: $FORCE"
+
+          if [ "$FORCE" = "true" ]; then
+            echo "Force flag set, will create release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          elif [ -z "$LOCAL" ]; then
+            echo "No local tags found, will create first release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          elif [ "$UPSTREAM" = "$LOCAL" ]; then
+            echo "Versions match, no release needed"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            # Compare versions using sort -V
+            NEWER=$(printf '%s\n%s\n' "$UPSTREAM" "$LOCAL" | sort -V | tail -n1)
+            if [ "$NEWER" = "$UPSTREAM" ] && [ "$UPSTREAM" != "$LOCAL" ]; then
+              echo "Upstream is newer, will create release"
+              echo "should_release=true" >> $GITHUB_OUTPUT
+            else
+              echo "Local is newer or equal, no release needed"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Update Dockerfile with pinned version
+        if: steps.compare.outputs.should_release == 'true' && inputs.dry_run != true
+        run: |
+          VERSION="${{ steps.upstream.outputs.version }}"
+          echo "Pinning Dockerfile to ghcr.io/actions/actions-runner:$VERSION"
+          sed -i "s|FROM ghcr.io/actions/actions-runner:.*|FROM ghcr.io/actions/actions-runner:$VERSION|" Dockerfile
+          cat Dockerfile | head -n1
+
+      - name: Commit Dockerfile changes
+        if: steps.compare.outputs.should_release == 'true' && inputs.dry_run != true
+        run: |
+          VERSION="${{ steps.upstream.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Dockerfile
+          git commit -m "chore: pin base image to actions-runner:$VERSION" || echo "No changes to commit"
+          git push
+
+      - name: Create and push tag
+        if: steps.compare.outputs.should_release == 'true' && inputs.dry_run != true
+        run: |
+          VERSION="${{ steps.upstream.outputs.version }}"
+          echo "Creating tag $VERSION"
+          git tag -a "$VERSION" -m "Release $VERSION (synced with actions/runner)"
+          git push origin "$VERSION"
+
+      - name: Create GitHub Release
+        if: steps.compare.outputs.should_release == 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          VERSION="${{ steps.upstream.outputs.version }}"
+          gh release create "$VERSION" \
+            --title "Release $VERSION" \
+            --notes "Automated release synced with [actions/runner $VERSION](https://github.com/actions/runner/releases/tag/$VERSION).
+
+          This release updates the base image to \`ghcr.io/actions/actions-runner:$VERSION\`.
+
+          ## What's Included
+          - GitHub Actions Runner $VERSION
+          - Nix package manager (Determinate Systems installer)
+          - Cachix
+          - Devenv"
+
+      - name: Dry run summary
+        if: inputs.dry_run == true
+        run: |
+          echo "=== DRY RUN SUMMARY ==="
+          echo "Upstream version: ${{ steps.upstream.outputs.version }}"
+          echo "Local version: ${{ steps.local.outputs.version }}"
+          echo "Should release: ${{ steps.compare.outputs.should_release }}"
+          if [ "${{ steps.compare.outputs.should_release }}" = "true" ]; then
+            echo ""
+            echo "Would perform:"
+            echo "  1. Update Dockerfile to pin ghcr.io/actions/actions-runner:${{ steps.upstream.outputs.version }}"
+            echo "  2. Commit and push Dockerfile changes"
+            echo "  3. Create and push tag ${{ steps.upstream.outputs.version }}"
+            echo "  4. Create GitHub Release ${{ steps.upstream.outputs.version }}"
+          fi
