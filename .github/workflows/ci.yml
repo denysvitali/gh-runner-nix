@@ -41,6 +41,9 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "is_versioned=true" >> $GITHUB_OUTPUT
+            # Strip "v" prefix for Docker image tag
+            DOCKER_VERSION=${GITHUB_REF_NAME#v}
+            echo "docker_version=$DOCKER_VERSION" >> $GITHUB_OUTPUT
           else
             echo "is_versioned=false" >> $GITHUB_OUTPUT
           fi
@@ -52,8 +55,8 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
           tags: |
             type=ref,event=branch
-            type=ref,event=tag
-            type=raw,value=${{ github.ref_name }}-${{ steps.sha.outputs.short }}
+            type=raw,value=${{ steps.check.outputs.docker_version }},enable=${{ steps.check.outputs.is_versioned }}
+            type=raw,value=${{ steps.check.outputs.docker_version }}-${{ steps.sha.outputs.short }},enable=${{ steps.check.outputs.is_versioned }}
             type=raw,value=latest,enable=${{ steps.check.outputs.is_versioned }}
 
       - name: Build and push
