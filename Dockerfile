@@ -22,7 +22,7 @@ USER runner
 # Install packages using nix profile (modern approach)
 RUN nix profile install nixpkgs#cachix
 
-RUN nix profile install nixpkgs#devenv
+RUN nix profile install --accept-flake-config github:cachix/devenv/latest
 
 # Update PATH for runner user's nix profile
 ENV PATH="/home/runner/.nix-profile/bin:${PATH}"
